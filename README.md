@@ -1,38 +1,52 @@
-# Lightweight Road Crack Segmentation with a Depthwise-Separable U-Net
+# Road Crack Detection with a CNN (Image-Level Classification)
 
-Pixel-level road crack segmentation designed for low-resource settings: trained on the free Google Colab tier and run on a CPU. Developed as a final-year Bachelor's thesis at Ekiti State University (2025).
+A lightweight convolutional neural network that classifies road-surface images as **crack** or **no crack**. Built as a final-year Bachelor's thesis project at Ekiti State University (2025), and designed to be trained on the free Google Colab tier and run on a CPU.
 
-<!-- Add a hero image here: input | ground-truth mask | prediction overlay -->
+<!-- Add a figure here: a grid of correctly/incorrectly classified example images -->
 
-## Overview
+## What this is (and isn't)
 
-- **Task:** binary semantic segmentation (crack vs. background)
-- **Model:** U-Net variant with depthwise separable convolutions, reducing parameters by ~65% relative to a standard U-Net (`<N>` M vs `<M>` M parameters)
-- **Data:** 2,000+ images of Nigerian roads (Ekiti-Ondo highways) with pixel-level annotations, captured under dust, shadow, and poor-lighting conditions
-- **Training:** TensorFlow 2.x / Keras on Colab (T4 free tier)
-- **Inference:** ~28 FPS on an Intel i5 (8th gen) CPU, `<input size>` input, batch size 1
+- **Task:** binary image classification. The model outputs one probability per image: how likely it is that the image contains a crack.
+- **Not included:** crack localisation or pixel-level segmentation. The model does not say *where* the crack is.
+
+## Model
+
+Four Conv2D blocks (32 → 64 → 128 → 256 filters, each with BatchNorm and 2×2 max-pooling), followed by global average pooling, two dense layers (512, 256) with dropout, and a sigmoid output. Input size is 224×224 RGB, pixel values scaled to [0, 1]. Trained with binary cross-entropy and Adam, with early stopping and learning-rate reduction on validation loss.
+
+Parameters: `<N>` (run `model.summary()`).
+
+## Data
+
+`<Describe: number of images per class, where and how they were collected (device, locations, conditions), how labels were assigned, and whether the dataset can be shared.>`
+
+Expected folder layout (class names are examples; see the note on label order below):
+
+```
+data/
+├── train/
+│   ├── crack/
+│   └── no_crack/
+└── test/            # held-out, never used for tuning or early stopping
+    ├── crack/
+    └── no_crack/
+```
+
+> **Label order:** Keras assigns class indices alphabetically by folder name, and the model's single output is the probability of class index 1. With `crack` / `no_crack`, index 1 is **no_crack**. `evaluate.py` and `inference.py` handle this explicitly, so set the flags correctly.
 
 ## Results
 
-| Model | Params | mIoU | Crack-class IoU | F1 | CPU FPS |
-|---|---|---|---|---|---|
-| Standard U-Net (baseline) | `<>` | `<>` | `<>` | `<>` | `<>` |
-| **Ours (DS-U-Net)** | `<>` | `<96.4>` | `<>` | `<>` | `<28>` |
+Evaluated on a held-out test set of `<N>` images (`<N_crack>` crack / `<N_no_crack>` no crack), split by `<road segment / location / collection session>` so that near-duplicate frames do not appear in both train and test.
 
-Evaluation protocol: `<describe split: counts, how split was made (by image / by road segment / by location), threshold used, how mIoU is computed>`.
+| Metric (crack = positive class) | Value |
+|---|---|
+| Accuracy | `<>` |
+| Precision | `<>` |
+| Recall | `<>` |
+| F1 | `<>` |
+| ROC-AUC | `<>` |
+| PR-AUC | `<>` |
 
-> Note: mIoU averages crack and background classes, so it is inflated when cracks cover few pixels. Report crack-class IoU/F1 alongside it.
-
-## Repository structure
-
-```
-.
-├── train.py            # training script  (rename from "Crack-dectection system CNN.py")
-├── inference.py        # run the model on an image or folder
-├── requirements.txt
-├── samples/            # a few example images + predictions
-└── LICENSE
-```
+Generate all of these with `evaluate.py` (below). Inference speed: `<X>` images/s on `<CPU model>`, batch size 1, measured with `evaluate.py --benchmark`.
 
 ## Installation
 
@@ -45,36 +59,26 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Inference on one image
-python inference.py --image samples/test_road.jpg --weights <path/to/weights>
+# Single image
+python inference.py --model best_crack_detection_model.h5 --image path/to/road.jpg
 
-# Training (Colab recommended)
-python train.py --data <path/to/data> --epochs <N>
+# Folder of images, saving a CSV
+python inference.py --model best_crack_detection_model.h5 --folder path/to/images --output results.csv
+
+# Full evaluation on the held-out test set
+python evaluate.py --model best_crack_detection_model.h5 --test-dir data/test --positive-class crack --benchmark
 ```
-
-## Dataset
-
-`<Available / not publicly available>`. Images were collected `<how, with what device, when>` and annotated `<tool, annotator count, QA process>`.
-
-Expected layout:
-
-```
-data/
-├── raw/      # RGB images
-└── masks/    # binary masks (crack = 255)
-```
-
-Augmentations (Albumentations): rotation, flip, brightness, contrast, blur.
 
 ## Limitations
 
-- Trained on Nigerian highway imagery from a limited number of locations; generalisation to other surfaces or regions is untested.
-- `<other known failure cases, e.g. shadows, patched asphalt, wet roads>`
+- Trained on `<region/roads>`; performance on other road types, lighting, camera angles, or regions is untested.
+- Image-level output only: no localisation, no crack severity or width.
+- `<Known failure cases, e.g. shadows, patched asphalt, road markings, wet surfaces. Add examples from your error analysis.>`
 
 ## License
 
 MIT. See `LICENSE`.
 
-## Citation / Contact
+## Author
 
 Samson Oluwadare, Department of Computer Science, Ekiti State University.
